@@ -8,7 +8,7 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 
 To install all the necessary library.
 
-3. Then run:
+2. Then run:
 
 ### `npm start`
 
