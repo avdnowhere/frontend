@@ -2,7 +2,7 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 
 ## STEP BY STEP
 
-1. In the project directory, you need to run:
+**bold** 1. In the project directory, you need to run:
 
 ### `npm install`
 
