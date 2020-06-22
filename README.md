@@ -20,7 +20,7 @@ You will also see any lint errors in the console.<br/><br/>
 
 **3. The frontend code located at:**
 
-### `App.js`<br/><br/>
+### `src\App.js`<br/><br/>
 
 **4. You need the backend code to run the application, click this link for more details:**
 
