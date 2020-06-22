@@ -22,6 +22,6 @@ You will also see any lint errors in the console.<br/><br/>
 
 ### `App.js`<br/><br/>
 
-**4. You the backend code to run the application:**
+**4. You need the backend code to run the application, click this link for more details:**
 
 ### `https://github.com/avdnowhere/backend/tree/dev`
