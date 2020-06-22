@@ -6,7 +6,7 @@ This project was bootstrapped with [Create React App](https://github.com/faceboo
 
 ### `npm install`
 
-To install all the necessary library.<br/><br/>
+To install all the necessary libraries.<br/><br/>
 
 **2. Then run:**
 
