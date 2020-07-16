@@ -10,10 +10,7 @@ import { useSoftRiseShadowStyles } from '@mui-treasury/styles/shadow/softRise';
 import { useFadedShadowStyles } from '@mui-treasury/styles/shadow/faded';
 import 'date-fns';
 import DateFnsUtils from '@date-io/date-fns';
-import {
-    MuiPickersUtilsProvider,
-    KeyboardDatePicker
-} from '@material-ui/pickers';
+import { MuiPickersUtilsProvider, KeyboardDatePicker } from '@material-ui/pickers';
 import IconButton from '@material-ui/core/IconButton';
 import SearchIcon from '@material-ui/icons/Search';
 import { showSnackbar } from './action/SnackBarAction';
@@ -22,19 +19,14 @@ import Select from '@material-ui/core/Select';
 import axios from 'axios';
 import { connect } from 'react-redux';
 import SnackbarConnect from './components/Snackbar/SnackbarConnect';
-import Paper from '@material-ui/core/Paper';
-import Skeleton from '@material-ui/lab/Skeleton';
-import Typography from '@material-ui/core/Typography';
-import TextField from '@material-ui/core/TextField';
 import Button from '@material-ui/core/Button';
 import Container from '@material-ui/core/Container';
-import Validate from './utils/Validate';
-import Animation from './components/Loader/Animation';
-import Dialog from '@material-ui/core/Dialog';
-import DialogActions from '@material-ui/core/DialogActions';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import DialogContentText from '@material-ui/core/DialogContentText';
+import SearchBookingNoDialog from './components/Modal/SearchBookingNoDialog';
+import CancelBookingDialog from './components/Modal/CancelBookingDialog';
+import RescheduleBookingDialog from './components/Modal/RescheduleBookingDialog';
+import Loading from './components/Loader/Loading';
+import Success from './components/Message/Success';
+import Booking from './components/Form/Booking';
 
 const useStyles = makeStyles(({ spacing }) => ({
     card: {
@@ -68,28 +60,10 @@ const useStyles = makeStyles(({ spacing }) => ({
         marginTop: 5,
         marginLeft: 60,
     },
-    notFoundBasicLayout: {
-        width: '100%',
-        textAlign: "center",
-        boxShadow: 'none'
-    },
     timePicker: {
       verticalAlign: 'bottom',
       marginLeft: 70,
       marginTop: 20
-    },
-    sectionSpacing: {
-        marginTop: '20px'
-    },
-    submitDisable: {
-        marginTop: 20,
-        height: '50px',
-        fontWeight: 'normal'
-    },
-    submitEnable: {
-        marginTop: 20,
-        height: '50px',
-        fontWeight: 'bold'
     },
     searchBookingNo: {
         color: '#FFFFFF',
@@ -99,69 +73,9 @@ const useStyles = makeStyles(({ spacing }) => ({
     },
 }));
 
-function SearchBookingNoDialog({ ...props }) {
-    const classes = useStyles();
-    const { isOpen, isClose } = props;
-    const [disableSubmit, setDisableSubmit] = useState(true);
-    const [bookingNo, setBookingNo] = useState('');
-
-    const handleChangeBookingNo = event => {
-        setBookingNo(event.target.value);
-        if (event.target.value.length > 1) {
-            setDisableSubmit(false);
-        } else {
-            setDisableSubmit(true);
-        }
-    }
-
-    return (
-        <div>
-            <Dialog open={isOpen} onClose={isClose} aria-labelledby="form-dialog-title" fullWidth={true}>
-                <DialogTitle id="form-dialog-title">Search Booking Details</DialogTitle>
-                <form className={classes.form}>
-                    <DialogContent>
-                        <DialogContentText>
-                            Please enter your booking number.
-                        </DialogContentText>
-                        <Grid container direction="column" spacing={2}>
-                            <Grid item>
-                                <TextField
-                                    fullWidth
-                                    required
-                                    variant="outlined"
-                                    label="Booking Number"
-                                    value={bookingNo}
-                                    onChange={handleChangeBookingNo}
-                                />
-                            </Grid>
-                        </Grid>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button
-                            color="primary"
-                            onClick={isClose}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            color="primary"
-                            disabled={disableSubmit}
-                            onClick={(e)=>props.searchBookingNo(e, bookingNo)}
-                        >
-                            Search
-                        </Button>
-                    </DialogActions>
-                </form>
-            </Dialog>
-        </div>
-    );
-}
-
 const App = ({dispatch}) => {
     const apiUrl = 'http://localhost/carsomeapi/api/';
     const apiHeaders = { 'ApiKey': 'SuFH7x5V2v', 'Content-Type': 'application/json' };
-    const skeletonList = [{key: 1}, {key: 2}, {key: 3}, {key: 4}];
 
     const classes = useStyles();
     const cardHeaderStyles = useContainedCardHeaderStyles();
@@ -170,47 +84,47 @@ const App = ({dispatch}) => {
 
     const [selectedDate, setSelectedDate] = useState(null);
     const [isSetDate, setIsSetDate] = useState(false);
-    const [minDate, setMinDate] = useState(new Date());
+    const minDate = new Date();
+    const [maxDate, setMaxDate] = useState(new Date());
     const [selectedTime, setSelectedTime] = useState(0);
     const [isSetTime, setIsSetTime] = useState(false);
     const [timeSelection, setTimeSelection] = useState([]);
-
-    const [disableSubmit, setDisableSubmit] = useState(true);
+    const [oriTimeSelection, setOriTimeSelection] = useState([]);
     const [disableTextField, setDisableTextField] = useState(false);
-
     const [isLoading, setIsLoading] = useState(false);
     const [isSlotAvailable, setIsSlotAvailable] = useState(false);
     const [isBookingSuccess, setIsBookingSuccess] = useState(false);
-
     const [name, setName] = useState(null);
     const [bookingNo, setBookingNo] = useState(null);
     const [showDialog, setShowDialog] = useState(false);
+    const [showCancelDialog, setShowCancelDialog] = useState(false);
+    const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+    const [isReset, setIsReset] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [body, setBody] = useState({
         Date: '',
         BookTimeId: 0,
+    });
+
+    const [bodyBooking, setBodyBooking] = useState({
         Name: '',
         Email: '',
         MobileNo: '',
-        CarRegistrationNo: ''
-    });
-
-    const [error, setError] = useState({
-        Name: false,
-        Email: false,
-        MobileNo: false,
-        CarRegistrationNo: false
+        CarRegistrationNo: '',
+        BookingStatus: ''
     });
 
     useEffect(() => {
       let nextThreeWeeksDate = new Date();
       nextThreeWeeksDate.setDate(nextThreeWeeksDate.getDate() + 21);
-      setMinDate(nextThreeWeeksDate);
+      setMaxDate(nextThreeWeeksDate);
 
       axios.get(apiUrl + 'allbookingtime', { headers: { 'ApiKey': 'SuFH7x5V2v', 'Content-Type': 'application/json' } })
       .then(response => {
             if(response.data.BookingTimeData.length > 0){
                 setTimeSelection(response.data.BookingTimeData);
+                setOriTimeSelection(response.data.BookingTimeData);
             } else {
                 return dispatch(showSnackbar("There are no available booking time at the moment.", "warning"));
             }
@@ -225,117 +139,28 @@ const App = ({dispatch}) => {
         return date.getDay() === 0;
     }
 
-    const checkEmptyData = () => {
-        let emptyData = Object.keys(body).some((i) => {
-            return body[i] === '';
-        });
-        setDisableSubmit(emptyData);
-    }
-
     const resetAllForms = () => {
         setSelectedDate(null);
         setSelectedTime(0);
         setIsSetDate(false);
         setIsSetTime(false);
-        setDisableSubmit(true);
         setDisableTextField(false);
         setIsSlotAvailable(false);
         setIsBookingSuccess(false);
-        setBody({
-            ...body,
-            Name: '',
-            Email: '',
-            MobileNo: '',
-            CarRegistrationNo: ''
-        });
+        setIsReset(true);
     }
 
-    const handleChangeName = event => {
-        if (event.target.value.length > 1) {
-            setError({
-                ...error,
-                Name: false
-            }); 
-        } else {
-            setError({
-                ...error,
-                Name: true
-            });
-        }
-        checkEmptyData();
-
-        setBody({
-            ...body,
-            Name: event.target.value.toUpperCase()
-        });
-    }
-
-    const handleChangeEmail = event => {
-        if (Validate.email(event.target.value)) {
-            setError({
-                ...error,
-                Email: false
-            });
-        } else {
-            setError({
-                ...error,
-                Email: true
-            });
-        }
-        checkEmptyData();
-
-        setBody({
-            ...body,
-            Email: event.target.value
-        });
-    }
-
-    const handleChangeMobileNo = event => {
-        if (Validate.phone(event.target.value)) {
-            setError({
-                ...error,
-                MobileNo: false
-            });
-        } else {
-            setError({
-                ...error,
-                MobileNo: true
-            });
-        }
-        checkEmptyData();
-
-        setBody({
-            ...body,
-            MobileNo: event.target.value.replace(/\s/g, '')
-        });
-    }
-
-    const handleChangeCarRegistrationNo = event => {
-        if (event.target.value.length > 1) {
-            setError({
-                ...error,
-                CarRegistrationNo: false
-            });
-        } else {
-            setError({
-                ...error,
-                CarRegistrationNo: true
-            });
-        }
-        checkEmptyData();
-
-        setBody({
-            ...body,
-            CarRegistrationNo: event.target.value.toUpperCase().replace(/\s/g, '')
-        });
-    }
-
-    const handleSubmitRegistration = event => {
+    const submitRegistration = (event, bodyParam) => {
         event.preventDefault();
+        const newBody = {...body, ...bodyParam};
+        handleSubmitRegistration(newBody);
+    }
+
+    const handleSubmitRegistration = (newBody) => {
         setIsSlotAvailable(false);
         setIsLoading(true);
-
-        axios.post(apiUrl + 'addnewbookingdetails', body, { headers: apiHeaders })
+        
+        axios.post(apiUrl + 'addnewbookingdetails', newBody, { headers: apiHeaders })
         .then(response => {
             setTimeout(function(){
                 setIsLoading(false);
@@ -345,9 +170,19 @@ const App = ({dispatch}) => {
                     setBookingNo(response.data.BookingDetailsData.BookingNo);
                     setIsBookingSuccess(true);
                 } else {
-                    if(response.data.BookingDetailsData.ApiStatus !== 'Failed'){
+                    if(response.data.BookingDetailsData.ApiStatus === 'Not Available'){
+                        return dispatch(showSnackbar("The selected slot is fully booked. Please select another date or time.", "warning"));
+                    } else if(response.data.BookingDetailsData.ApiStatus === 'Already Exist') {
                         setIsSlotAvailable(true);
-                        return dispatch(showSnackbar("The car with registration no " + body.CarRegistrationNo + " has already booked.", "warning"));
+                        setBodyBooking({
+                            ...bodyBooking,
+                            Name: newBody.Name,
+                            Email: newBody.Email,
+                            MobileNo: newBody.MobileNo,
+                            CarRegistrationNo: newBody.CarRegistrationNo,
+                        });
+
+                        return dispatch(showSnackbar("The car with registration no " + newBody.CarRegistrationNo + " has already booked.", "warning"));                   
                     } else {
                         resetAllForms();
                         return dispatch(showSnackbar("An unexpected error has occurred. Please try again later.", "error"));
@@ -368,6 +203,7 @@ const App = ({dispatch}) => {
 
         setIsSetDate(true);
         setSelectedDate(date);
+        setSelectedTime(0);
 
         let bookingDate = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate();
 
@@ -375,6 +211,8 @@ const App = ({dispatch}) => {
             ...body,
             Date: bookingDate
         });
+
+        checkCurrentTime(bookingDate);
     }
 
     const handleChangeSelectedTime = time => {
@@ -396,11 +234,34 @@ const App = ({dispatch}) => {
         });
     }
 
+    const checkCurrentTime = (date) => {
+        const today = new Date();
+        const currentDate = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+        const currentTime = today.getHours();
+        const newTimeSelection = [];
+
+        if(currentDate === date){
+            timeSelection.forEach(function(item){
+                let label = item.label.split('.');
+                let time = Number(label[0]);
+                if(time > currentTime){
+                    newTimeSelection.push(item);
+                }
+            });
+            if(newTimeSelection.length > 0){
+                setTimeSelection(newTimeSelection);
+            }
+        } else {
+            setTimeSelection(oriTimeSelection);
+        }
+    }
+
     const handleSubmitSearch = event => {
         event.preventDefault();
         setIsSlotAvailable(false);
         setIsLoading(true);
         setIsBookingSuccess(false);
+        setIsReset(true);
 
         let bookingDate = selectedDate.getFullYear() + "-" + (selectedDate.getMonth() + 1) + "-" + selectedDate.getDate();
 
@@ -430,13 +291,15 @@ const App = ({dispatch}) => {
         setShowDialog(true);
     };
 
-    function handleSearchBookingNo(event, bookingNo) {
+    const handleSearchBookingNo = (event, bookingNo) => {
         event.preventDefault();
-        
+        setIsSubmitting(true);
+
         axios.get(apiUrl + 'searchbookingdetails/' + bookingNo, { headers: apiHeaders })
         .then(response => {
             setTimeout(function(){
                 setIsLoading(false);
+                setIsSubmitting(false);
                 if(response.data.BookingDetailsData.Id > 0){
                     setDisableTextField(true);
                     setIsSlotAvailable(true);
@@ -444,13 +307,21 @@ const App = ({dispatch}) => {
                     setIsSetTime(false);
                     setShowDialog(false);
                     setIsBookingSuccess(false);
+                    setBookingNo(bookingNo);
 
-                    setBody({
-                        ...body,
+                    setBodyBooking({
+                        ...bodyBooking,
                         Name: response.data.BookingDetailsData.Name,
                         Email: response.data.BookingDetailsData.Email,
                         MobileNo: response.data.BookingDetailsData.MobileNo,
-                        CarRegistrationNo: response.data.BookingDetailsData.CarRegistrationNo
+                        CarRegistrationNo: response.data.BookingDetailsData.CarRegistrationNo,
+                        BookingStatus: response.data.BookingDetailsData.BookingStatus
+                    });
+
+                    setBody({
+                        ...body,
+                        Date: response.data.BookingDetailsData.Date,
+                        BookTimeId: response.data.BookingDetailsData.BookTimeId
                     });
 
                     let bookingDate = new Date(response.data.BookingDetailsData.Date);
@@ -469,10 +340,78 @@ const App = ({dispatch}) => {
         });
     }
 
+    const submitCancel = (event) => {
+        event.preventDefault();
+        setShowCancelDialog(true);
+    }
+
+    const handleCloseCancelDialog = () => {
+        setShowCancelDialog(false);
+    }
+
+    const handleCancelBooking = (event) => {
+        event.preventDefault();
+        setIsSubmitting(true);
+        const newBody = {...body, BookingStatus: "Cancelled"};
+
+        axios.put(apiUrl + 'updatebookingdetails/' + bookingNo, newBody, { headers: apiHeaders })
+        .then(response => {
+            setTimeout(function(){
+                setShowCancelDialog(false);
+                setIsSubmitting(false);
+                resetAllForms();
+                if(response.data.BookingDetailsData.Id > 0){
+                    return dispatch(showSnackbar("The booking no " + bookingNo + " has been cancelled successfully.", "success"));
+                } else {
+                    return dispatch(showSnackbar("An unexpected error has occurred. Please try again later.", "error"));
+                }
+
+            }, 2000);
+        })
+        .catch(error => {
+          console.log(error);
+        });
+    }
+
+    const submitReschedule = (event) => {
+        event.preventDefault();
+        setShowRescheduleDialog(true);
+    }
+
+    const handleCloseRescheduleDialog = () => {
+        setShowRescheduleDialog(false);
+    }
+
+    const handleRescheduleBooking = (event, bodyParam) => {
+        event.preventDefault();
+        setIsSubmitting(true);
+        const newBody = {...bodyParam, BookingStatus: "Rescheduled"};
+
+        axios.put(apiUrl + 'updatebookingdetails/' + bookingNo, newBody, { headers: apiHeaders })
+        .then(response => {
+            setTimeout(function(){
+                setShowRescheduleDialog(false);
+                setIsSubmitting(false);
+                resetAllForms();
+                if(response.data.BookingDetailsData.Id > 0){
+                    return dispatch(showSnackbar("The booking no " + bookingNo + " has been rescheduled successfully.", "success"));
+                } else {
+                    return dispatch(showSnackbar("An unexpected error has occurred. Please try again later.", "error"));
+                }
+
+            }, 2000);
+        })
+        .catch(error => {
+          console.log(error);
+        });
+    }
+
     return (
         <Container component="main" maxWidth="md" className={classes.center}>
             <SnackbarConnect />
-            <SearchBookingNoDialog isOpen={showDialog} isClose={handleCloseDialog} searchBookingNo={handleSearchBookingNo} />
+            <SearchBookingNoDialog isOpen={showDialog} isClose={handleCloseDialog} isSubmitting={isSubmitting} searchBookingNo={handleSearchBookingNo} />
+            <CancelBookingDialog isOpen={showCancelDialog} isClose={handleCloseCancelDialog} isSubmitting={isSubmitting} cancelBooking={handleCancelBooking} />
+            <RescheduleBookingDialog isOpen={showRescheduleDialog} isClose={handleCloseRescheduleDialog} isSubmitting={isSubmitting} rescheduleBooking={handleRescheduleBooking} />
             <Grid container>
                 <Grid item xs={12}>
                     <Card className={cx(classes.card, cardShadowStyles.root)}>
@@ -499,7 +438,8 @@ const App = ({dispatch}) => {
                                                 label="Please select a date"
                                                 format="dd/MM/yyyy"
                                                 variant="inline"
-                                                minDate={minDate}
+                                                minDate={minDate} 
+                                                maxDate={maxDate}
                                                 disabled={disableTextField}
                                                 value={selectedDate}
                                                 onChange={handleChangeSelectedDate}
@@ -541,142 +481,21 @@ const App = ({dispatch}) => {
                     {
                         !isSlotAvailable
                         ?
-                            <Paper className={classes.notFoundBasicLayout}>
-                                <div className={classes.textCenter}>
-                                    {   isLoading
-                                        ?
-                                            <Fragment>
-                                                <Grid container spacing={2}>
-                                                    {skeletonList.map(item => {
-                                                    return  <Grid key={item.key} item xs={12} md={6}>
-                                                                <Skeleton animation="wave" height={100} width="100%" />
-                                                            </Grid>;
-                                                    })}
-                                                    <Grid item xs={12}>
-                                                        <Skeleton animation="wave" height={100} width="100%" />
-                                                    </Grid>
-                                                </Grid>
-                                            </Fragment>
-                                        :   
-                                            null
-                                    }
-                                </div>
-                            </Paper>
+                            <Loading isLoading={isLoading} />
                         :
-                            <form className={classes.form}>
-                                <Grid container spacing={4}>
-                                    <Grid item xs={12}>
-                                        <Typography variant={'h6'} className={classes.bold}>
-                                            {disableTextField ? 'Booking' : 'Personal'} Information
-                                        </Typography>
-                                        <Typography variant={'subtitle2'} className={classes.caption}>
-                                            Details about your {disableTextField ? 'booking' : 'personal'} information
-                                        </Typography>
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <TextField
-                                            fullWidth
-                                            required
-                                            variant="outlined"
-                                            label="Full Name"
-                                            disabled={disableTextField}
-                                            error={error.Name}
-                                            value={body.Name}
-                                            onChange={handleChangeName}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <TextField
-                                            fullWidth
-                                            required
-                                            variant="outlined"
-                                            label="Email Address"
-                                            disabled={disableTextField}
-                                            error={error.Email}
-                                            value={body.Email}
-                                            onChange={handleChangeEmail}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <TextField
-                                            fullWidth
-                                            required
-                                            variant="outlined"
-                                            label="Mobile Number"
-                                            disabled={disableTextField}
-                                            error={error.MobileNo}
-                                            value={body.MobileNo}
-                                            onChange={handleChangeMobileNo}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12} md={6}>
-                                        <TextField
-                                            fullWidth
-                                            required
-                                            variant="outlined"
-                                            label="Car Registation Number"
-                                            disabled={disableTextField}
-                                            error={error.CarRegistrationNo}
-                                            value={body.CarRegistrationNo}
-                                            onChange={handleChangeCarRegistrationNo}
-                                        />
-                                    </Grid>
-                                </Grid>
-                                <Grid container className={classes.sectionSpacing}>
-                                    <Grid item xs={12}>
-                                    {
-                                        !disableTextField 
-                                        ?
-                                            <Button
-                                            type="submit"
-                                            fullWidth
-                                            variant="contained"
-                                            color="primary"
-                                            disabled={disableSubmit || error.Name || error.Email || error.MobileNo || error.CarRegistrationNo}
-                                            className={(disableSubmit || error.Name || error.Email || error.MobileNo || error.CarRegistrationNo) ? classes.submitDisable : classes.submitEnable}
-                                            onClick={handleSubmitRegistration}
-                                            >
-                                                Submit
-                                            </Button> 
-                                        :
-                                            null
-                                    }
-                                    </Grid>
-                                </Grid>
-                            </form>
+                            <Booking 
+                                isReset={isReset}
+                                bodyBooking={bodyBooking}
+                                disableTextField={disableTextField}
+                                submitRegistration={submitRegistration}
+                                submitCancel={submitCancel}
+                                submitReschedule={submitReschedule}
+                            />
                     }
                     {
                         isBookingSuccess
                         ?
-                        <Container component="main">
-                        <Paper className={classes.notFoundBasicLayout}>
-                        <div className={classes.textCenter}>
-                            <Fragment>
-                                <div>
-                                    <Animation json={require("./assets/welcome.json")} style={{ width: '40%', height: 'unset' }} />
-                                </div>
-                                <Typography variant="h6" gutterBottom>
-                                    Dear {name},
-                                </Typography>
-                                <Typography variant="subtitle1" gutterBottom>
-                                    Your booking for inspection slot has been successfully registered on Carsome.my.
-                                </Typography>
-                                <Typography variant="subtitle1" style={{ marginTop: 5 }}>
-                                    This is your booking number: <span style={{ fontWeight: 'bold' }}>{bookingNo}</span>.
-                                </Typography>
-                                <Typography variant="subtitle1" style={{ marginTop: 5 }}>
-                                    Kindly be informed that one of our team will be in contact with you shortly.
-                                </Typography>
-                                <Typography variant="subtitle1" style={{ marginTop: 15 }}>
-                                    Best regards,
-                                </Typography>
-                                <Typography variant="subtitle1" style={{ fontWeight: 'bold' }}>
-                                    Carsome.my Team
-                                </Typography>
-                            </Fragment>
-                            </div>
-                            </Paper>
-                            </Container>
+                            <Success name={name} bookingNo={bookingNo} />
                         :
                             null
                     }
