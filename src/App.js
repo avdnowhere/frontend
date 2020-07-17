@@ -170,7 +170,9 @@ const App = ({dispatch}) => {
                     setBookingNo(response.data.BookingDetailsData.BookingNo);
                     setIsBookingSuccess(true);
                 } else {
-                    if(response.data.BookingDetailsData.ApiStatus === 'Not Available'){
+                    if(response.data.BookingDetailsData.ApiStatus === 'Not Valid'){
+                        return dispatch(showSnackbar("The selected slot is not valid. Please select another date or time.", "warning"));
+                    } else if(response.data.BookingDetailsData.ApiStatus === 'Not Available'){
                         return dispatch(showSnackbar("The selected slot is fully booked. Please select another date or time.", "warning"));
                     } else if(response.data.BookingDetailsData.ApiStatus === 'Already Exist') {
                         setIsSlotAvailable(true);
@@ -465,7 +467,7 @@ const App = ({dispatch}) => {
                                     <Grid item xs={2} className={classes.textCenter} style={{ marginTop: '10px' }}>
                                         {   !disableTextField 
                                             ?
-                                                <IconButton onClick={handleSubmitSearch} className={classes.iconColor} disabled={!isSetTime}>
+                                                <IconButton onClick={handleSubmitSearch} className={classes.iconColor} disabled={!isSetTime || selectedTime === 0}>
                                                     <SearchIcon className={classes.iconSize} />
                                                 </IconButton>
                                             :
